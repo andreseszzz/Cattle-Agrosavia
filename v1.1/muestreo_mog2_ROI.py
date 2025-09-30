@@ -12,12 +12,12 @@ from datetime import datetime, timezone
 # =======================
 # CONFIGURACIONES
 # =======================
-VIDEO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_Tibaitata/a5-20250924T204658Z-1-003/XVR_ch5_main_20250825135308_20250825140320.mp4"
-OUTPUT_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_Tibaitata/a5-20250924T204658Z-1-003"
+VIDEO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/clip3_to_Mold.mp4"
+OUTPUT_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/v1.1/output_mog2_ROI"
 
 
-SAM_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/V1.1/muestreo_gradiente_delimitador/sam2.1_l.pt"
-YOLO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/V1.1/muestreo_gradiente_delimitador/yolo12m.pt"
+SAM_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/sam2.1_l.pt"
+YOLO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/yolo12l.pt"
 
 
 YOLO_CONF = 0.25
@@ -26,7 +26,7 @@ TARGET_CLASSES = ["cow"]
 
 
 # Detección / muestreo
-FRAME_SKIP = 5
+FRAME_SKIP = 15
 MIN_AREA = 4000
 MOG_HISTORY = 1000
 MOG_VAR_THRESHOLD = 50
@@ -34,22 +34,20 @@ MOG_DETECT_SHADOWS = True
 
 
 # Deduplicación
-DUPLICATE_SAVE_DIFF = 3.0
-DUPLICATE_COMPARE_SIZE = (320, 240)
+DUPLICATE_SAVE_DIFF = 5.0
+DUPLICATE_COMPARE_SIZE = (640, 480)
 
 
 # ROI (coordenadas en píxeles)
 ROI_POLYGON = np.array([
-   [253, 92],
-   [257, 330],
-   [280, 771],
-   [490, 776],
-   [521, 602],
-   [450, 462],
-   [376, 257],
-   [373, 112]
+   [92, 5],
+   [216, 711],
+   [1040, 716],
+   [939, 238],
+   [624, 165],
+   [102, 11]
 ], np.int32).reshape((-1, 1, 2))
-STRICT_ROI = False  # True = todas dentro, False = basta una
+STRICT_ROI = True  # True = todas dentro, False = basta una
 
 
 # Depuración
@@ -183,6 +181,7 @@ def process_video(video_path, output_dir):
    frame_count = 0
    saved_count = 0
    start_time = time.time()
+   last_saved_frame = None
 
 
    while True:
@@ -235,37 +234,48 @@ def process_video(video_path, output_dir):
            ann_path = os.path.join(ann_dir, ann_name)
 
 
-           cv2.imwrite(img_path, frame)
-           Image.fromarray((mask_total * 255).astype(np.uint8)).save(mask_path)
+           # Deduplicación por diferencia de imagen
+           should_save = True
+           if last_saved_frame is not None:
+               prev = cv2.resize(last_saved_frame, DUPLICATE_COMPARE_SIZE)
+               curr = cv2.resize(frame, DUPLICATE_COMPARE_SIZE)
+               diff = np.mean(np.abs(prev.astype(np.float32) - curr.astype(np.float32)))
+               if diff < DUPLICATE_SAVE_DIFF:
+                   should_save = False
+
+           if should_save:
+               cv2.imwrite(img_path, frame)
+               Image.fromarray((mask_total * 255).astype(np.uint8)).save(mask_path)
 
 
-           annotation = {
-               "image_id": f"{video_name}_frame_{frame_count:06d}",
-               "file_name": f"images/{video_name}/{frame_name}",
-               "mask_path": f"masks/{video_name}/{mask_name}",
-               "video_path": os.path.basename(video_path),
-               "frame_index_in_video": frame_count,
-               "timestamp_sec_in_video": round(frame_count / fps, 2),
-               "timestamp_saved_utc": datetime.now(timezone.utc).isoformat(),
-               "detections": detections
-           }
+               annotation = {
+                   "image_id": f"{video_name}_frame_{frame_count:06d}",
+                   "file_name": f"images/{video_name}/{frame_name}",
+                   "mask_path": f"masks/{video_name}/{mask_name}",
+                   "video_path": os.path.basename(video_path),
+                   "frame_index_in_video": frame_count,
+                   "timestamp_sec_in_video": round(frame_count / fps, 2),
+                   "timestamp_saved_utc": datetime.now(timezone.utc).isoformat(),
+                   "detections": detections
+               }
 
 
-           with open(ann_path, "w") as f:
-               json.dump(annotation, f, indent=2)
+               with open(ann_path, "w") as f:
+                   json.dump(annotation, f, indent=2)
 
 
-           saved_count += 1
-           print(f"✅ Guardado frame: {frame_name}")
+               last_saved_frame = frame.copy()
+               saved_count += 1
+               print(f"✅ Guardado frame: {frame_name}")
 
 
-           if SAVE_DEBUG:
-               dbg = frame.copy()
-               cv2.polylines(dbg, [ROI_POLYGON], True, (0,255,255), 2)
-               for det in detections:
-                   x1,y1,x2,y2 = det["bbox"]
-                   cv2.rectangle(dbg, (x1,y1),(x2,y2),(0,255,0),2)
-               cv2.imwrite(os.path.join(debug_dir, f"debug_{frame_name}"), dbg)
+               if SAVE_DEBUG:
+                   dbg = frame.copy()
+                   cv2.polylines(dbg, [ROI_POLYGON], True, (0,255,255), 2)
+                   for det in detections:
+                       x1,y1,x2,y2 = det["bbox"]
+                       cv2.rectangle(dbg, (x1,y1),(x2,y2),(0,255,0),2)
+                   cv2.imwrite(os.path.join(debug_dir, f"debug_{frame_name}"), dbg)
 
 
    cap.release()

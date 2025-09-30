@@ -2,7 +2,6 @@ import cv2
 import os
 import numpy as np
 import json
-from segment_anything import sam_model_registry, SamPredictor
 from ultralytics import YOLO
 from PIL import Image
 import torch
@@ -15,9 +14,8 @@ from datetime import datetime, timezone
 # =======================
 VIDEO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_Tibaitata/a5-20250924T204658Z-1-003/a5/XVR_ch5_main_20250825135308_20250825140320.mp4"  # <--- Carpeta con los videos a procesar
 OUTPUT_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_Tibaitata/a5-20250924T204658Z-1-003"
-SAM_TYPE = "vit_h"
-SAM_PATH = r"V1.1/muestre_gradiente_MOG2/sam_vit_h_4b8939.pth"
 YOLO_PATH = r"V1.1/muestre_gradiente_MOG2/yolo12m.pt"
+SAM2_PATH = r"V1.1/muestre_gradiente_MOG2/sam2.pt"  # Cambia por tu checkpoint de SAM2
 
 
 # Detección / muestreo
@@ -39,30 +37,23 @@ DUPLICATE_COMPARE_SIZE = (320, 240)  # tamaño para comparar (más pequeño => m
 # CARGAR MODELOS
 # =======================
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-sam = sam_model_registry[SAM_TYPE](checkpoint=SAM_PATH)
-sam.to(DEVICE)
-sam_predictor = SamPredictor(sam)
 yolo_model = YOLO(YOLO_PATH)
+sam2_model = YOLO(SAM2_PATH)  # SAM2 se carga igual que YOLO en Ultralytics
 
 
 def detect_cows_and_mask(frame):
    """
-   Detecta vacas con YOLO y segmenta con SAM.
+   Detecta vacas con YOLO y segmenta con SAM2 de Ultralytics.
    Devuelve una máscara combinada y lista de detecciones.
    """
    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
    results = yolo_model(img_rgb)
-   # results[0] es el primer resultado por frame
    boxes = results[0].boxes
    names = results[0].names
 
 
    mask_total = np.zeros(frame.shape[:2], dtype=np.uint8)
    detections = []
-
-
-   # set_image una sola vez por frame (más eficiente)
-   sam_predictor.set_image(img_rgb)
 
 
    # Iterar sobre cajas (si no hay cajas, boxes puede estar vacío)
@@ -84,33 +75,30 @@ def detect_cows_and_mask(frame):
        bbox = [int(x1), int(y1), int(x2), int(y2)]
 
 
-       # Preparar input para SAM (forma: [ [x1,y1,x2,y2] ])
-       input_box = np.array([bbox])
-       masks, scores_sam, _ = sam_predictor.predict(
-           box=input_box,
-           multimask_output=False
+       # --- SAM2 segmentación ---
+       # Ultralytics SAM2 usa el método .predict con el parámetro 'boxes'
+       sam2_results = sam2_model.predict(
+           source=img_rgb,
+           boxes=[bbox],  # lista de cajas
+           device=DEVICE,
+           retina_masks=True,  # para obtener máscaras del tamaño original
+           verbose=False
        )
 
 
-       if masks is None or len(masks) == 0:
-           continue
-
-
-       mask = masks[0].astype(np.uint8)
-       mask_total = np.logical_or(mask_total, mask).astype(np.uint8)
-
-
-       detections.append({
-           "class": class_name,
-           "score": float(scores_sam[0]) if (scores_sam is not None and len(scores_sam)>0) else None,
-           "bbox": bbox,
-           "mask_area_px": int(mask.sum())
-       })
+       # Extraer la máscara del resultado
+       if hasattr(sam2_results[0], "masks") and sam2_results[0].masks is not None:
+           mask = sam2_results[0].masks.data[0].cpu().numpy().astype(np.uint8)
+           mask_total = np.logical_or(mask_total, mask).astype(np.uint8)
+           detections.append({
+               "class": class_name,
+               "score": float(box.conf[0]) if hasattr(box, "conf") else None,
+               "bbox": bbox,
+               "mask_area_px": int(mask.sum())
+           })
 
 
    return mask_total, detections
-
-
 
 
 # =======================

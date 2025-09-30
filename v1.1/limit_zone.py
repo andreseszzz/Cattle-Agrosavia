@@ -11,7 +11,7 @@ def click_event(event, x, y, flags, param):
        print(f"Punto agregado: {x,y}")
 
 
-frame = cv2.imread("/home/pipe/Documentos/Proyecto_Ganado/Finca_Tibaitata/image_limit.png")  # un frame del video
+frame = cv2.imread("/home/pipe/Documentos/Proyecto_Ganado/Finca_San_Alberto/05-03-2025/709.jpg")  # un frame del video
 cv2.imshow("Selecciona ROI", frame)
 cv2.setMouseCallback("Selecciona ROI", click_event)
 
