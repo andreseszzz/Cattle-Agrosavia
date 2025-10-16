@@ -1,8 +1,3 @@
-"""
-Script simple para añadir campos faltantes a las anotaciones JSON.
-Preserva toda la información existente.
-"""
-
 import os
 import json
 from pathlib import Path
@@ -14,22 +9,22 @@ from tqdm import tqdm
 # =======================
 
 # Directorio base donde están las anotaciones
-BASE_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/annotations/0407"
+BASE_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/actualizacionanotaciones/noche(04-03-2025)"
 
 # Parámetros a añadir (editar según tus necesidades)
 PARAMS = {
-    "video_id": "0407",                    # ID del video procesado
-    "camera_id": "ch4_main",               # ID de la cámara
-    "image_width": 1920,                   # Ancho de las imágenes
-    "image_height": 1080,                  # Alto de las imágenes
-    "annotator": "auto_v1",                # Quién/qué generó las anotaciones
+    "video_id": "noche(04-03-2025)",                    # ID del video procesado
+    "camera_id": "cam4",               # ID de la cámara
+    "image_width": 1280,                   # Ancho de las imágenes
+    "image_height": 720,                  # Alto de las imágenes
+    "annotator": "muestreo_mog2_ROI_video.py",                # Quién/qué generó las anotaciones
     "annotation_version": "v1.0"           # Versión del esquema de anotación
 }
 
 # Corrección de video_path (opcional)
 # Si es None, mantiene el video_path original
 # Si defines un valor, lo reemplaza
-CORRECT_VIDEO_PATH = None  # Ejemplo: "raw_videos/2025-03-04/0407.mp4"
+CORRECT_VIDEO_PATH = "raw_videos/04-03-2025"  # Ejemplo: "raw_videos/2025-03-04/0407.mp4"
 
 
 # =======================

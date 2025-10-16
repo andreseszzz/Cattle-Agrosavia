@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 # =======================
 # CONFIGURACIONES
 # =======================
-VIDEO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_San_Alberto/04-03-2025/XVR_ch4_main_20250304070000_20250304080000.mp4"
-OUTPUT_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_San_Alberto/04-03-2025/XVR_ch4_main_20250304070000_20250304080000"
+VIDEO_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_San_Alberto/04-03-2025/XVR_ch4_main_20250304180000_20250304190000.mp4"
+OUTPUT_DIR = r"/home/pipe/Documentos/Proyecto_Ganado/Finca_San_Alberto/04-03-2025/XVR_ch4_main_20250304180000_20250304190000"
 
 
 SAM_PATH = r"/home/pipe/Documentos/Proyecto_Ganado/sam2.1_l.pt"
@@ -261,10 +261,16 @@ def process_video(video_path, output_dir):
                    "image_id": f"{video_name}_frame_{frame_count:06d}",
                    "file_name": f"images/{video_name}/{frame_name}",
                    "mask_path": f"masks/{video_name}/{mask_name}",
-                   "video_path": os.path.basename(video_path),
+                   "video_path": "raw_videos/04-03-2025",
+                   "video_id": video_name,
+                   "camera_id": "camara4",
                    "frame_index_in_video": frame_count,
                    "timestamp_sec_in_video": round(frame_count / fps, 2),
                    "timestamp_saved_utc": datetime.now(timezone.utc).isoformat(),
+                   "image_width": frame.shape[1],
+                   "image_height": frame.shape[0],
+                   "annotator": "muestreo_mog2_ROI_video.py",
+                   "annotation_version": "v1.0",
                    "detections": detections
                }
 
